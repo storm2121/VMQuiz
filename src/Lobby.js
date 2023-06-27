@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { getDatabase, ref, onValue, remove } from "firebase/database";
-import { db } from './firebase.js';  
+import { getDatabase, ref, onValue, remove, child, get, update } from "firebase/database";
+import { db, auth } from './firebase.js';  
 
 function Lobby() {
     const [lobbyData, setLobbyData] = useState(null);
@@ -12,11 +12,46 @@ function Lobby() {
         const lobbyRef = ref(db, `/lobbies/${lobbyId}`);
         const unsubscribe = onValue(lobbyRef, (snapshot) => {
             const data = snapshot.val();
+            if (!data) {
+                navigate('/lobby');
+                return;
+            }
             setLobbyData(data);
+
+            if (!data.members || Object.keys(data.members).length === 0) {
+                remove(lobbyRef);
+                navigate('/lobby');
+            }
         });
 
-        return () => unsubscribe();
-    }, [lobbyId]);
+        // remove user when the window is closed or reloaded
+        window.onbeforeunload = async (event) => {
+            const email = auth.currentUser.email;
+            const username = email.split('@')[0];
+
+            const membersRef = child(lobbyRef, 'members');
+            const snapshot = await get(membersRef);
+            const members = snapshot.val();
+
+            let userId;
+            for (let id in members) {
+                if (members[id].username === username) {
+                    userId = id;
+                    break;
+                }
+            }
+
+            if (userId) {
+                const userRef = child(membersRef, userId);
+                await remove(userRef);
+            }
+        };
+
+        return () => {
+            unsubscribe();
+            window.onbeforeunload = null; // cleanup
+        };
+    }, [lobbyId, navigate]);
 
     const closeLobby = async () => {
         const lobbyRef = ref(db, `/lobbies/${lobbyId}`);

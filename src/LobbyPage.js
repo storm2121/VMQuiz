@@ -26,26 +26,27 @@ function LobbyPage() {
     }, []);
 
     const handleCreateLobby = async (lobbyName) => {
-        // Get the part of the email before the '@' sign
         const email = auth.currentUser.email;
         const username = email.split('@')[0];
-
+        
         const newLobbyRef = push(ref(db, '/lobbies'));
-        await set(newLobbyRef, { name: lobbyName, username });
+        await set(newLobbyRef, { 
+            name: lobbyName, 
+            members: {
+                [newLobbyRef.key]: { username },
+            }
+        });
         navigate(`/lobby/${newLobbyRef.key}`);
     };
 
     const handleJoinLobby = async (lobbyId) => {
-        // Get the part of the email before the '@' sign
         const email = auth.currentUser.email;
         const username = email.split('@')[0];
 
-        // Update the members field in the database
         const lobbyRef = ref(db, `/lobbies/${lobbyId}/members`);
         const newMemberRef = push(lobbyRef);
         await set(newMemberRef, { username });
 
-        // Navigate to the lobby
         navigate(`/lobby/${lobbyId}`);
     };
 
@@ -56,14 +57,13 @@ function LobbyPage() {
             {lobbies.map(lobby => (
                 <div key={lobby.id}>
                     <h2>{lobby.name}</h2>
-                    <p>Username: {lobby.username}</p>
                     <button onClick={() => handleJoinLobby(lobby.id)}>Join</button>
                 </div>
             ))}
             <CreateLobbyModal
                 isOpen={isModalOpen}
                 onClose={() => setIsModalOpen(false)}
-                onCreate={(lobbyName) => handleCreateLobby(lobbyName)}
+                onCreate={handleCreateLobby}
             />
         </div>
     );
