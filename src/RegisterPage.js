@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { getAuth, createUserWithEmailAndPassword } from "firebase/auth";
-import { auth } from "./firebase"; // make sure to adjust this to your actual path
+import { auth } from "./firebase.js"; // make sure to adjust this to your actual path
 import { useNavigate } from "react-router-dom";
 
 function RegisterPage() {

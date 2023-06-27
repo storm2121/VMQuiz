@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { auth, db } from './firebase';
+import { db, auth } from './firebase.js';
 import { ref, onValue, off, push, set } from "firebase/database";
 import CreateLobbyModal from './CreateLobbyModal';
+import { useNavigate } from 'react-router-dom';
 
 function LobbyPage() {
     const [lobbies, setLobbies] = useState([]);
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const navigate = useNavigate();
 
     useEffect(() => {
         const lobbyRef = ref(db, '/lobbies');
@@ -23,9 +25,24 @@ function LobbyPage() {
         };
     }, []);
 
-    const handleCreateLobby = ({ lobbyName, username, rememberUsername }) => {
+    const handleCreateLobby = async ({ lobbyName, username, rememberUsername }) => {
         const newLobbyRef = push(ref(db, '/lobbies'));
-        set(newLobbyRef, { name: lobbyName, username, rememberUsername });
+        await set(newLobbyRef, { name: lobbyName, username, rememberUsername });
+        navigate(`/lobby/${newLobbyRef.key}`);
+    };
+
+    const handleJoinLobby = async (lobbyId) => {
+        // Get the part of the email before the '@' sign
+        const email = auth.currentUser.email;
+        const username = email.split('@')[0];
+
+        // Update the members field in the database
+        const lobbyRef = ref(db, `/lobbies/${lobbyId}/members`);
+        const newMemberRef = push(lobbyRef);
+        await set(newMemberRef, { username });
+
+        // Navigate to the lobby
+        navigate(`/lobby/${lobbyId}`);
     };
 
     return (
@@ -36,6 +53,7 @@ function LobbyPage() {
                 <div key={lobby.id}>
                     <h2>{lobby.name}</h2>
                     <p>Username: {lobby.username}</p>
+                    <button onClick={() => handleJoinLobby(lobby.id)}>Join</button>
                 </div>
             ))}
             <CreateLobbyModal
