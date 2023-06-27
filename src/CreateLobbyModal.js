@@ -2,11 +2,9 @@ import React, { useState } from 'react';
 
 function CreateLobbyModal({ isOpen, onClose, onCreate }) {
     const [lobbyName, setLobbyName] = useState('');
-    const [username, setUsername] = useState('');
-    const [rememberUsername, setRememberUsername] = useState(false);
 
     const handleCreate = () => {
-        onCreate({ lobbyName, username, rememberUsername });
+        onCreate(lobbyName);
         onClose();
     };
 
@@ -20,19 +18,6 @@ function CreateLobbyModal({ isOpen, onClose, onCreate }) {
                 onChange={e => setLobbyName(e.target.value)}
                 placeholder="Lobby Name"
             />
-            <input
-                value={username}
-                onChange={e => setUsername(e.target.value)}
-                placeholder="Username"
-            />
-            <label>
-                <input
-                    type="checkbox"
-                    checked={rememberUsername}
-                    onChange={e => setRememberUsername(e.target.checked)}
-                />
-                Remember Username
-            </label>
             <button onClick={handleCreate}>Create Lobby</button>
             <button onClick={onClose}>Cancel</button>
         </div>

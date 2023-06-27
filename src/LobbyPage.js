@@ -25,9 +25,13 @@ function LobbyPage() {
         };
     }, []);
 
-    const handleCreateLobby = async ({ lobbyName, username, rememberUsername }) => {
+    const handleCreateLobby = async (lobbyName) => {
+        // Get the part of the email before the '@' sign
+        const email = auth.currentUser.email;
+        const username = email.split('@')[0];
+
         const newLobbyRef = push(ref(db, '/lobbies'));
-        await set(newLobbyRef, { name: lobbyName, username, rememberUsername });
+        await set(newLobbyRef, { name: lobbyName, username });
         navigate(`/lobby/${newLobbyRef.key}`);
     };
 
@@ -59,7 +63,7 @@ function LobbyPage() {
             <CreateLobbyModal
                 isOpen={isModalOpen}
                 onClose={() => setIsModalOpen(false)}
-                onCreate={handleCreateLobby}
+                onCreate={(lobbyName) => handleCreateLobby(lobbyName)}
             />
         </div>
     );
