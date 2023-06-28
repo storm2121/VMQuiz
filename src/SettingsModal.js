@@ -38,8 +38,8 @@ function SettingsModal({ isOpen, onClose, onSave }) {
           <Form.Group>
             <Form.Label>Song Genre</Form.Label>
             <Form.Control as="select" value={songGenre} onChange={e => setSongGenre(e.target.value)}>
-              <option value="eroge">Eroge</option>
-              <option value="non-eroge">Non-Eroge</option>
+              <option value="eroge">E</option>
+              <option value="non-eroge">Non-E</option>
             </Form.Control>
           </Form.Group>
         </Form>

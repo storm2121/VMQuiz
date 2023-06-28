@@ -1,22 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { db, auth } from './firebase.js';
 import { signOut } from 'firebase/auth';
-import { ref, onValue, off, push, set } from "firebase/database";
-import CreateLobbyModal from './CreateLobbyModal.js';
-import SettingsModal from './SettingsModal.js'; 
+import { ref, onValue, off, push, set, remove, onDisconnect } from "firebase/database";
+import CreateLobbyWithSettingsModal from './CreateLobbyWithSettingsModal.js';
 import { useNavigate } from 'react-router-dom';
 
 function LobbyPage() {
     const [lobbies, setLobbies] = useState([]);
     const [isModalOpen, setIsModalOpen] = useState(false);
-    const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-    const [settings, setSettings] = useState({
-        numSongs: 10,
-        guessTime: 30,
-        songType: "opening",
-        songGenre: "eroge"
-    });
-    const [lobbyName, setLobbyName] = useState("");
     const navigate = useNavigate();
 
     useEffect(() => {
@@ -35,18 +26,34 @@ function LobbyPage() {
         };
     }, []);
 
-    const handleCreateLobby = async ({ lobbyName }) => {
-        setLobbyName(lobbyName);
-        setIsSettingsOpen(true);
-    };
+   const handleCreateLobby = async ({ lobbyName, settings }) => {
+    const email = auth.currentUser.email;
+    const username = email.split('@')[0];
+
+    const newLobbyRef = push(ref(db, '/lobbies'));
+    await set(newLobbyRef, { 
+        name: lobbyName, 
+        members: { [username]: true }, 
+        settings
+    });
+
+    navigate(`/lobby/${newLobbyRef.key}`);
+};
+
 
     const handleJoinLobby = async (lobbyId) => {
         const email = auth.currentUser.email;
         const username = email.split('@')[0];
 
-        const lobbyRef = ref(db, `/lobbies/${lobbyId}/members`);
-        const newMemberRef = push(lobbyRef);
-        await set(newMemberRef, { username });
+        const userRef = ref(db, `/lobbies/${lobbyId}/members/${username}`);
+        await set(userRef, true);
+
+        // Monitor connection status
+        const connectedRef = ref(db, '.info/connected');
+        onValue(connectedRef, async snapshot => {
+            if (snapshot.val() === false) return;
+            await onDisconnect(userRef).remove();
+        });
 
         navigate(`/lobby/${lobbyId}`);
     };
@@ -59,22 +66,6 @@ function LobbyPage() {
             .catch((error) => {
                 console.error('Logout Error', error);
             });
-    };
-
-    const handleSettingsSave = async (newSettings) => {
-        setSettings(newSettings);
-
-        const email = auth.currentUser.email;
-        const username = email.split('@')[0];
-
-        const newLobbyRef = push(ref(db, '/lobbies'));
-        await set(newLobbyRef, { 
-            name: lobbyName, 
-            members: { host: { username } }, 
-            settings: newSettings
-        });
-
-        navigate(`/lobby/${newLobbyRef.key}`);
     };
 
     const handleCreateClick = () => {
@@ -92,16 +83,9 @@ function LobbyPage() {
                     <button onClick={() => handleJoinLobby(lobby.id)}>Join</button>
                 </div>
             ))}
-            <CreateLobbyModal
+            <CreateLobbyWithSettingsModal
                 isOpen={isModalOpen}
-                onClose={() => setIsModalOpen(false)}
                 onCreate={handleCreateLobby}
-            />
-            <SettingsModal
-                isOpen={isSettingsOpen}
-                settings={settings}
-                onClose={() => setIsSettingsOpen(false)}
-                onSave={handleSettingsSave}
             />
         </div>
     );

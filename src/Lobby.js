@@ -65,17 +65,17 @@ function Lobby() {
             const lobbyRef = ref(db, `/lobbies/${lobbyId}/members`);
             const membersSnapshot = await get(lobbyRef);
             const members = membersSnapshot.val();
-
+            const username = auth.currentUser ? auth.currentUser.email.split('@')[0] : '';
+        
             // Don't add the user if they're already a member
-            for (let memberId in members) {
-                if (members[memberId].username === username) {
-                    return;
-                }
+            if (members && Object.keys(members).includes(username)) {
+                return;
             }
-
-            const newMemberRef = push(lobbyRef);
-            set(newMemberRef, { username });
+        
+            const userRef = ref(db, `/lobbies/${lobbyId}/members/${username}`);
+            set(userRef, true);
         };
+        
 
         addMember();
 
@@ -83,18 +83,11 @@ function Lobby() {
             if (auth.currentUser) {
                 const currentUserEmail = auth.currentUser.email;
                 const currentUsername = currentUserEmail.split('@')[0];
-                const membersRef = ref(db, `/lobbies/${lobbyId}/members`);
-                const membersSnapshot = await get(membersRef);
-                const members = membersSnapshot.val();
-                for (let memberId in members) {
-                    if (members[memberId].username === currentUsername) {
-                        const userRef = ref(db, `/lobbies/${lobbyId}/members/${memberId}`);
-                        await remove(userRef);
-                    }
-                }
+                const userRef = ref(db, `/lobbies/${lobbyId}/members/${currentUsername}`);
+                await remove(userRef);
             }
         };
-
+        
         window.addEventListener('beforeunload', cleanup);
 
         return () => {
@@ -124,18 +117,19 @@ function Lobby() {
                     <p>Song genre: {settings.songGenre}</p>
                 </div>
             )}
-            {hasMembers ? (
-                <>
-                    <h2>Members:</h2>
-                    <ul>
-                        {Object.keys(lobbyData.members).map(memberId => (
-                            <li key={memberId}>{lobbyData.members[memberId].username}</li>
-                        ))}
-                    </ul>
-                </>
-            ) : (
-                <p>No members in this lobby yet.</p>
-            )}
+           {hasMembers ? (
+    <>
+        <h2>Members:</h2>
+        <ul>
+            {Object.keys(lobbyData.members).map(username => (
+                <li key={username}>{username}</li>
+            ))}
+        </ul>
+    </>
+) : (
+    <p>No members in this lobby yet.</p>
+)}
+
             <button onClick={closeLobby}>Close Lobby</button>
         </div>
     );

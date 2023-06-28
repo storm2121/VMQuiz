@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Modal, Button, Form } from 'react-bootstrap';
 
-function CreateLobbyWithSettingsModal({ isOpen, onClose, onCreate }) {
+function CreateLobbyWithSettingsModal({ isOpen, onCreate }) {
     const [lobbyName, setLobbyName] = useState('');
     const [numSongs, setNumSongs] = useState(10); 
     const [guessTime, setGuessTime] = useState(30);
@@ -17,12 +17,11 @@ function CreateLobbyWithSettingsModal({ isOpen, onClose, onCreate }) {
         });
 
         setLobbyName('');
-        onClose();
     };
 
     return (
-        <Modal show={isOpen} onHide={onClose}>
-            <Modal.Header closeButton>
+        <Modal show={isOpen}>
+            <Modal.Header>
                 <Modal.Title>Create Lobby</Modal.Title>
             </Modal.Header>
             <Modal.Body>
