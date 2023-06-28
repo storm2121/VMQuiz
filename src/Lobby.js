@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { getDatabase, ref, onValue, remove, child, get, update } from "firebase/database";
+import { ref, onValue, remove, off, push, set, get } from "firebase/database";
 import { db, auth } from './firebase.js';  
+import { onAuthStateChanged } from "firebase/auth";
 
 function Lobby() {
     const [lobbyData, setLobbyData] = useState(null);
@@ -12,44 +13,75 @@ function Lobby() {
         const lobbyRef = ref(db, `/lobbies/${lobbyId}`);
         const unsubscribe = onValue(lobbyRef, (snapshot) => {
             const data = snapshot.val();
-            if (!data) {
-                navigate('/lobby');
-                return;
-            }
             setLobbyData(data);
+        });
 
-            if (!data.members || Object.keys(data.members).length === 0) {
-                remove(lobbyRef);
-                navigate('/lobby');
+        return () => unsubscribe();
+    }, [lobbyId]);
+
+    useEffect(() => {
+        const membersRef = ref(db, `/lobbies/${lobbyId}/members`);
+        const membersUnsubscribe = onValue(membersRef, (snapshot) => {
+            const members = snapshot.val();
+            if (!members) {
+                closeLobby();
             }
         });
 
-        // remove user when the window is closed or reloaded
-        window.onbeforeunload = async (event) => {
-            const email = auth.currentUser.email;
-            const username = email.split('@')[0];
+        return () => off(membersRef, membersUnsubscribe);
+    }, [lobbyId]);
 
-            const membersRef = child(lobbyRef, 'members');
-            const snapshot = await get(membersRef);
-            const members = snapshot.val();
+    useEffect(() => {
+        onAuthStateChanged(auth, (user) => {
+            if (!user) {
+                navigate('/login');
+            }
+        });
+    }, [navigate]);
 
-            let userId;
-            for (let id in members) {
-                if (members[id].username === username) {
-                    userId = id;
-                    break;
+    useEffect(() => {
+        const username = auth.currentUser ? auth.currentUser.email.split('@')[0] : '';
+        window.localStorage.setItem('currentLobby', lobbyId);
+
+        const addMember = async () => {
+            const lobbyRef = ref(db, `/lobbies/${lobbyId}/members`);
+            const membersSnapshot = await get(lobbyRef);
+            const members = membersSnapshot.val();
+
+            // Don't add the user if they're already a member
+            for (let memberId in members) {
+                if (members[memberId].username === username) {
+                    return;
                 }
             }
 
-            if (userId) {
-                const userRef = child(membersRef, userId);
-                await remove(userRef);
+            const newMemberRef = push(lobbyRef);
+            set(newMemberRef, { username });
+        };
+
+        addMember();
+
+        const cleanup = async () => {
+            if (auth.currentUser) {
+                const currentUserEmail = auth.currentUser.email;
+                const currentUsername = currentUserEmail.split('@')[0];
+                const membersRef = ref(db, `/lobbies/${lobbyId}/members`);
+                const membersSnapshot = await get(membersRef);
+                const members = membersSnapshot.val();
+                for (let memberId in members) {
+                    if (members[memberId].username === currentUsername) {
+                        const userRef = ref(db, `/lobbies/${lobbyId}/members/${memberId}`);
+                        await remove(userRef);
+                    }
+                }
             }
         };
 
+        window.addEventListener('beforeunload', cleanup);
+
         return () => {
-            unsubscribe();
-            window.onbeforeunload = null; // cleanup
+            window.removeEventListener('beforeunload', cleanup);
+            cleanup();
         };
     }, [lobbyId, navigate]);
 
@@ -57,6 +89,8 @@ function Lobby() {
         const lobbyRef = ref(db, `/lobbies/${lobbyId}`);
         await remove(lobbyRef);
         navigate('/lobby');
+
+        window.localStorage.removeItem('currentLobby');
     };
 
     if (!lobbyData) return 'Loading...';

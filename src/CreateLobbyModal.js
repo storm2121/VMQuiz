@@ -4,7 +4,7 @@ function CreateLobbyModal({ isOpen, onClose, onCreate }) {
     const [lobbyName, setLobbyName] = useState('');
 
     const handleCreate = () => {
-        onCreate(lobbyName);
+        onCreate({ lobbyName });
         onClose();
     };
 
@@ -25,5 +25,3 @@ function CreateLobbyModal({ isOpen, onClose, onCreate }) {
 }
 
 export default CreateLobbyModal;
-
-// Hi
