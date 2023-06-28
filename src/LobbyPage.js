@@ -10,36 +10,6 @@ function LobbyPage() {
     const navigate = useNavigate();
 
     useEffect(() => {
-        const cleanup = async () => {
-            const currentLobby = window.localStorage.getItem('currentLobby');
-
-            if (currentLobby) {
-                const email = auth.currentUser.email;
-                const username = email.split('@')[0];
-
-                const membersRef = ref(db, `/lobbies/${currentLobby}/members`);
-                const snapshot = await get(membersRef);
-                const members = snapshot.val();
-
-                let userId;
-                for (let id in members) {
-                    if (members[id].username === username) {
-                        userId = id;
-                        break;
-                    }
-                }
-
-                if (userId) {
-                    const userRef = child(membersRef, userId);
-                    await remove(userRef);
-                }
-
-                window.localStorage.removeItem('currentLobby');
-            }
-        };
-
-        cleanup();
-
         const lobbyRef = ref(db, '/lobbies');
         const listener = onValue(lobbyRef, (snapshot) => {
             const lobbies = snapshot.val();
@@ -62,8 +32,6 @@ function LobbyPage() {
         const newLobbyRef = push(ref(db, '/lobbies'));
         await set(newLobbyRef, { name: lobbyName, members: { host: { username } } });
 
-        window.localStorage.setItem('currentLobby', newLobbyRef.key);
-
         navigate(`/lobby/${newLobbyRef.key}`);
     };
 
@@ -74,8 +42,6 @@ function LobbyPage() {
         const lobbyRef = ref(db, `/lobbies/${lobbyId}/members`);
         const newMemberRef = push(lobbyRef);
         await set(newMemberRef, { username });
-
-        window.localStorage.setItem('currentLobby', lobbyId);
 
         navigate(`/lobby/${lobbyId}`);
     };
