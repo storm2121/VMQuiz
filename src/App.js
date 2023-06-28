@@ -5,12 +5,13 @@ import RegisterPage from "./RegisterPage";
 import LobbyPage from "./LobbyPage";
 import Lobby from "./Lobby";
 import AuthWrapper from "./AuthWrapper";
+import RootPage from "./RootPage"; // Add this line
 
 function App() {
   return (
     <Router>
       <Routes>
-        <Route path="/" element={<LoginPage />} />
+        <Route path="/" element={<RootPage />} /> // Replace LoginPage with RootPage
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/lobby" element={<AuthWrapper><LobbyPage /></AuthWrapper>} />

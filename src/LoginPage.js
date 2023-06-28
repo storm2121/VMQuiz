@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { auth } from "./firebase.js";
@@ -8,12 +8,16 @@ function LoginPage() {
   const [password, setPassword] = useState("");
   const navigate = useNavigate();
 
+  useEffect(() => {
+    if (auth.currentUser) {
+      navigate("/lobby");
+    }
+  }, [navigate]);
+
   const handleSubmit = (e) => {
     e.preventDefault();
-    // Login logic here
     signInWithEmailAndPassword(auth, email, password)
       .then((userCredential) => {
-        // Signed in 
         navigate("/lobby");
       })
       .catch((error) => {

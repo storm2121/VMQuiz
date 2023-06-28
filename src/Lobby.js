@@ -8,6 +8,7 @@ function Lobby() {
     const [userLoaded, setUserLoaded] = useState(false);
     const { lobbyId } = useParams();
     const navigate = useNavigate();
+    const [settings, setSettings] = useState(null); // Add this line
 
     useEffect(() => {
         if (!auth.currentUser) {
@@ -28,6 +29,18 @@ function Lobby() {
 
         return () => unsubscribe();
     }, [lobbyId, userLoaded]);
+
+    useEffect(() => {
+        const settingsRef = ref(db, `/lobbies/${lobbyId}/settings`); // Add this block
+        const listener = onValue(settingsRef, snapshot => {
+          const settings = snapshot.val();
+          setSettings(settings);
+        });
+
+        return () => {
+          off(settingsRef, listener);
+        };
+    }, [lobbyId]);
 
     useEffect(() => {
         if (!userLoaded) return;
@@ -103,6 +116,14 @@ function Lobby() {
     return (
         <div>
             <h1>{lobbyData.name}</h1>
+            {settings && ( // Add this block
+                <div>
+                    <p>Number of songs: {settings.numSongs}</p>
+                    <p>Time to guess a song: {settings.guessTime}</p>
+                    <p>Song type: {settings.songType}</p>
+                    <p>Song genre: {settings.songGenre}</p>
+                </div>
+            )}
             {hasMembers ? (
                 <>
                     <h2>Members:</h2>
