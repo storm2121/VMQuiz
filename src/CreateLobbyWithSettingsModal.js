@@ -22,7 +22,7 @@ function CreateLobbyWithSettingsModal({ isOpen, onCreate }) {
     return (
         <Modal show={isOpen}>
             <Modal.Header>
-                <Modal.Title></Modal.Title>
+                <Modal.Title>Create Lobby</Modal.Title>
             </Modal.Header>
             <Modal.Body>
                 <Form onSubmit={handleSubmit}>
