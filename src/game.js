@@ -1,111 +1,149 @@
-import React, { useState, useEffect } from 'react';
-import { ref, onValue, off, push, set, remove } from "firebase/database";
-import { db, auth, realtimeDB } from './firebase.js';
+import React, { useState, useEffect, useRef } from 'react';
+import { ref, onValue, off, set, get } from "firebase/database";
+import { collection, query, getDocs, where } from "firebase/firestore";
+import { db, firestore, auth } from './firebase.js';
 import { useNavigate, useParams } from 'react-router-dom';
 
 function Game() {
-    const [songs, setSongs] = useState([]);
-    const [timeLeft, setTimeLeft] = useState(null);
-    const [scores, setScores] = useState({});
-    const [currentSongName, setCurrentSongName] = useState("");
-    const [guess, setGuess] = useState("");
-    const { lobbyId } = useParams();
-    const navigate = useNavigate();
-    let guessTime, numSongs, songType;
+  const [songs, setSongs] = useState([]);
+  const [timeLeft, setTimeLeft] = useState(null);
+  const [currentSongName, setCurrentSongName] = useState("???");
+  const [currentSongUrl, setCurrentSongUrl] = useState("");
+  const [currentSongGame, setCurrentSongGame] = useState("");
+  const [guess, setGuess] = useState("");
+  const [members, setMembers] = useState([]);
+  const { lobbyId } = useParams();
+  const navigate = useNavigate();
+  const audioRef = useRef();
+  const gameIntervalRef = useRef();
+  const countdownIntervalRef = useRef();
 
-    useEffect(() => {
-        const lobbySettingsRef = ref(db, `/lobbies/${lobbyId}/settings`);
-        const lobbySettingsListener = onValue(lobbySettingsRef, (snapshot) => {
-            const settings = snapshot.val();
-            guessTime = settings.guessTime;
-            numSongs = settings.numSongs;
-            songType = settings.songType;
+  useEffect(() => {
+    const lobbySettingsRef = ref(db, `/lobbies/${lobbyId}/settings`);
+    onValue(lobbySettingsRef, async (snapshot) => {
+      const settings = snapshot.val();
+      const fetchedSongs = await fetchSongs(settings.songGenre);
+      if (fetchedSongs.length > 0) {
+        startGame(fetchedSongs, settings.guessTime, settings.numSongs);
+      }
+    });
+
+    const membersRef = ref(db, `/lobbies/${lobbyId}/members`);
+    onValue(membersRef, (snapshot) => {
+      const membersData = snapshot.val() || {};
+      console.log("Members data from Firebase:", membersData);
+      setMembers(Object.entries(membersData).map(([userId, userData]) => ({
+        name: userId, // assuming userId is the username; adjust as needed
+        points: userData.points || 0,
+      })));
+    });
+    
+
+    return () => {
+      off(membersRef);
+      clearInterval(gameIntervalRef.current);
+      clearInterval(countdownIntervalRef.current);
+    };
+  }, [lobbyId, navigate]);
+
+  const fetchSongs = async (songGenre) => {
+    const songsRef = collection(firestore, '/songs');
+    const q = query(songsRef, where('songGenre', '==', songGenre));
+    const querySnapshot = await getDocs(q);
+    const filteredSongs = [];
+
+    querySnapshot.forEach((doc) => {
+      filteredSongs.push(doc.data());
+    });
+
+    setSongs(filteredSongs);
+    return filteredSongs;
+  };
+
+  const startGame = (songs, guessTime, numSongs) => {
+    let rounds = 0;
+    const playedSongs = new Set();
+    const playRound = () => {
+      if (rounds >= numSongs || playedSongs.size >= songs.length) {
+        clearInterval(gameIntervalRef.current);
+        navigate(`/lobby/${lobbyId}`);
+        return;
+      }
+
+      let randomSong;
+      do {
+        randomSong = songs[Math.floor(Math.random() * songs.length)];
+      } while (playedSongs.has(randomSong.url));
+      playedSongs.add(randomSong.url);
+
+      setCurrentSongUrl(randomSong.url);
+      setCurrentSongGame(randomSong.game);
+      setTimeLeft(guessTime);
+
+      clearInterval(countdownIntervalRef.current); // Clear previous interval
+      countdownIntervalRef.current = setInterval(() => {
+        setTimeLeft(prevTimeLeft => {
+          if (prevTimeLeft <= 1) {
+            clearInterval(countdownIntervalRef.current);
+            endRound();
+          }
+          return prevTimeLeft - 1;
         });
+      }, 1000);
 
-        const songRef = ref(db, '/songs');
-        const songListener = onValue(songRef, (snapshot) => {
-            const allSongs = snapshot.val();
-            const filteredSongs = Object.values(allSongs).filter(song => song.type === songType);
-
-            if (filteredSongs.length === 0) {
-                console.error("No songs of selected type in the database");
-                navigate(`/lobby/${lobbyId}`);
-            } else {
-                setSongs(filteredSongs);
-                startGame(filteredSongs);
-            }
-        });
-
-        return () => {
-            off(songRef, songListener);
-            off(lobbySettingsRef, lobbySettingsListener);
-        };
-    }, []);
-
-    const startGame = (songs) => {
-        let rounds = 0;
-
-        const gameInterval = setInterval(() => {
-            if (rounds >= numSongs) {
-                clearInterval(gameInterval);
-                navigate(`/lobby/${lobbyId}`);
-            } else {
-                setCurrentSongName("");
-                const randomSong = songs[Math.floor(Math.random() * songs.length)];
-                setTimeLeft(guessTime);
-                // You can play the song here using randomSong.url
-                
-                const countdownInterval = setInterval(() => {
-                    setTimeLeft(timeLeft => {
-                        if (timeLeft === 1) {
-                            clearInterval(countdownInterval);
-                            setCurrentSongName(randomSong.name);
-                        }
-                        return timeLeft - 1;
-                    });
-                }, 1000);
-
-                rounds++;
-            }
-        }, (guessTime + 5) * 1000); // guessTime + 5 seconds for showing the answer and a little break
+      rounds++;
     };
 
-    const handleGuessSubmit = (e) => {
-        e.preventDefault();
-        
-        // This is a very basic check, you may need a more complex logic depending on your song names
-        if (guess.toLowerCase() === currentSongName.toLowerCase()) {
-            const email = auth.currentUser.email;
-            const username = email.split('@')[0];
-            setScores(scores => ({
-                ...scores,
-                [username]: (scores[username] || 0) + 1
-            }));
-        }
+    playRound();
+    gameIntervalRef.current = setInterval(playRound, (guessTime + 5) * 1000);
+  };
 
-        setGuess("");
-    };
+  const endRound = () => {
+    setCurrentSongName(currentSongGame);
+  };
 
-    return (
-        <div>
-            <h1>Game</h1>
-            <p>Time left: {timeLeft}</p>
-            <form onSubmit={handleGuessSubmit}>
-                <input 
-                    value={guess}
-                    onChange={e => setGuess(e.target.value)}
-                    placeholder="Guess the song"
-                    autoComplete="off"
-                />
-                <button type="submit">Submit Guess</button>
-            </form>
-            {currentSongName && <p>The song was: {currentSongName}</p>}
-            <h2>Scores:</h2>
-            {Object.entries(scores).map(([username, score]) => (
-                <p key={username}>{username}: {score}</p>
-            ))}
-        </div>
-    );
+  const submitGuess = async () => {
+    try {
+      if (auth.currentUser && guess === currentSongGame) {
+        const email = auth.currentUser.email;
+        const userId = email.split('@')[0];
+        const memberRef = ref(db, `/lobbies/${lobbyId}/members/${userId}`);
+        const memberSnapshot = await get(memberRef);
+        const memberPoints = (memberSnapshot.val()?.points || 0) + 1;
+        await set(memberRef, { points: memberPoints });
+      }
+  
+      setGuess("");
+    } catch (error) {
+      console.error("Error submitting guess:", error);
+    }
+  };
+  
+
+  useEffect(() => {
+    if (currentSongUrl) {
+      audioRef.current.load();
+      audioRef.current.play();
+    }
+  }, [currentSongUrl]);
+
+  return (
+    <div>
+      <h1>Guess the Song!</h1>
+      <div>Time left: {timeLeft}</div>
+      <input type="text" value={guess} onChange={(e) => setGuess(e.target.value)} />
+      <button onClick={submitGuess}>Submit Guess</button>
+      <div>Current Song: {currentSongName}</div>
+      <audio ref={audioRef} controls src={currentSongUrl}></audio>
+      <button onClick={() => navigate(`/lobby/${lobbyId}`)}>Back to Lobby</button>
+      <div>
+        <h2>Members:</h2>
+        {members.map(member => (
+          <div key={member.name}>{member.name}: {member.points || 0} points</div>
+        ))}
+      </div>
+    </div>
+  );
 }
 
 export default Game;

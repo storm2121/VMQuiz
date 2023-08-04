@@ -1,14 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ref, onValue, remove, off, push, set, get } from "firebase/database";
-import { db, auth } from './firebase.js';  
+import { ref, onValue, remove, off, push, set, get , update } from "firebase/database";
+import { db, auth } from './firebase.js';
 
 function Lobby() {
     const [lobbyData, setLobbyData] = useState(null);
     const [userLoaded, setUserLoaded] = useState(false);
     const { lobbyId } = useParams();
     const navigate = useNavigate();
-    const [settings, setSettings] = useState(null); // Add this line
+    const [settings, setSettings] = useState(null);
 
     useEffect(() => {
         if (!auth.currentUser) {
@@ -24,59 +24,56 @@ function Lobby() {
         const lobbyRef = ref(db, `/lobbies/${lobbyId}`);
         const unsubscribe = onValue(lobbyRef, (snapshot) => {
             const data = snapshot.val();
-            setLobbyData(data);
+            if (data) { // 
+                setLobbyData(data);
+            }
         });
-
+    
         return () => unsubscribe();
     }, [lobbyId, userLoaded]);
+    
 
     useEffect(() => {
-        const settingsRef = ref(db, `/lobbies/${lobbyId}/settings`); // Add this block
+        const settingsRef = ref(db, `/lobbies/${lobbyId}/settings`);
         const listener = onValue(settingsRef, snapshot => {
-          const settings = snapshot.val();
-          setSettings(settings);
+            const settings = snapshot.val();
+            setSettings(settings);
         });
 
         return () => {
-          off(settingsRef, listener);
+            off(settingsRef, listener);
         };
     }, [lobbyId]);
 
     useEffect(() => {
         if (!userLoaded) return;
-        
-        const membersRef = ref(db, `/lobbies/${lobbyId}/members`);
-        const membersUnsubscribe = onValue(membersRef, (snapshot) => {
-            const members = snapshot.val();
-            if (!members) {
-                closeLobby();
+
+        const gameStartRef = ref(db, `/lobbies/${lobbyId}/gameStarted`);
+        const listener = onValue(gameStartRef, (snapshot) => {
+            const hasStarted = snapshot.val();
+            if (hasStarted) {
+                navigate(`/game/${lobbyId}`);
             }
         });
 
-        return () => off(membersRef, membersUnsubscribe);
-    }, [lobbyId, userLoaded]);
+        return () => off(gameStartRef, listener);
+    }, [lobbyId, userLoaded, navigate]);
 
     useEffect(() => {
         if (!userLoaded) return;
 
         const username = auth.currentUser ? auth.currentUser.email.split('@')[0] : '';
-
         const addMember = async () => {
             const lobbyRef = ref(db, `/lobbies/${lobbyId}/members`);
             const membersSnapshot = await get(lobbyRef);
             const members = membersSnapshot.val();
             const username = auth.currentUser ? auth.currentUser.email.split('@')[0] : '';
-        
-            // Don't add the user if they're already a member
             if (members && Object.keys(members).includes(username)) {
                 return;
             }
-        
             const userRef = ref(db, `/lobbies/${lobbyId}/members/${username}`);
             set(userRef, true);
         };
-        
-
         addMember();
 
         const cleanup = async () => {
@@ -87,9 +84,8 @@ function Lobby() {
                 await remove(userRef);
             }
         };
-        
-        window.addEventListener('beforeunload', cleanup);
 
+        window.addEventListener('beforeunload', cleanup);
         return () => {
             window.removeEventListener('beforeunload', cleanup);
             cleanup();
@@ -102,6 +98,12 @@ function Lobby() {
         navigate('/lobby');
     };
 
+    const startGame = async () => {
+        const lobbyRef = ref(db, `/lobbies/${lobbyId}`);
+        await update(lobbyRef, { gameStarted: true });
+        navigate(`/game/${lobbyId}`);
+    };
+
     if (!lobbyData) return 'Loading...';
 
     const hasMembers = lobbyData.members && Object.keys(lobbyData.members).length > 0;
@@ -109,7 +111,7 @@ function Lobby() {
     return (
         <div>
             <h1>{lobbyData.name}</h1>
-            {settings && ( // Add this block
+            {settings && (
                 <div>
                     <p>Number of songs: {settings.numSongs}</p>
                     <p>Time to guess a song: {settings.guessTime}</p>
@@ -117,19 +119,19 @@ function Lobby() {
                     <p>Song genre: {settings.songGenre}</p>
                 </div>
             )}
-           {hasMembers ? (
-    <>
-        <h2>Members:</h2>
-        <ul>
-            {Object.keys(lobbyData.members).map(username => (
-                <li key={username}>{username}</li>
-            ))}
-        </ul>
-    </>
-) : (
-    <p>No members in this lobby yet.</p>
-)}
-
+            {hasMembers ? (
+                <>
+                    <h2>Members:</h2>
+                    <ul>
+                        {Object.keys(lobbyData.members).map(username => (
+                            <li key={username}>{username}</li>
+                        ))}
+                    </ul>
+                    <button onClick={startGame}>Start Game</button> {/* Add this line */}
+                </>
+            ) : (
+                <p>No members in this lobby yet.</p>
+            )}
             <button onClick={closeLobby}>Close Lobby</button>
         </div>
     );
