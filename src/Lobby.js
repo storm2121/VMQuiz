@@ -72,7 +72,7 @@ function Lobby() {
                 return;
             }
             const userRef = ref(db, `/lobbies/${lobbyId}/members/${username}`);
-            set(userRef, true);
+            set(userRef, { points: 0 }); // Initialize member with points property
         };
         addMember();
 
@@ -88,7 +88,6 @@ function Lobby() {
         window.addEventListener('beforeunload', cleanup);
         return () => {
             window.removeEventListener('beforeunload', cleanup);
-            cleanup();
         };
     }, [lobbyId, navigate, userLoaded]);
 
