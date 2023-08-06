@@ -19,6 +19,9 @@ function Game() {
   const audioRef = useRef();
   const gameIntervalRef = useRef();
   const countdownIntervalRef = useRef();
+  const isMountedRef = useRef(true); // Add this line
+
+  const navigateToLobby = useCallback(() => navigate(`/lobby/${lobbyId}`), [navigate, lobbyId]); // Add this line
 
   useEffect(() => {
     const initializeMembers = async () => {
@@ -66,7 +69,16 @@ function Game() {
       clearInterval(gameIntervalRef.current);
       clearInterval(countdownIntervalRef.current);
     };
-  }, [lobbyId, navigate, guessTime]);
+  }, [lobbyId, navigateToLobby, guessTime]);
+
+  useEffect(() => {
+    if (isGameEnded) {
+      console.log("Game ended state detected, navigating to lobby.");
+
+      navigate(`/lobby/${lobbyId}`);
+    }
+  }, [isGameEnded, lobbyId, navigate]);
+
 
   const fetchSongs = async (songGenre) => {
     const songsRef = collection(firestore, '/songs');
@@ -86,16 +98,12 @@ function Game() {
     let rounds = 0;
     const playedSongs = new Set();
     const playRound = async () => {
-      if (rounds >= numSongs || playedSongs.size >= songs.length) {
-        clearInterval(gameIntervalRef.current);
-        navigate(`/lobby/${lobbyId}`);
-        return;
-      }
-  
       let randomSong;
       do {
         
         randomSong = songs[Math.floor(Math.random() * songs.length)];
+        console.log("Chose new song: ", randomSong.game);
+
       } while (playedSongs.has(randomSong.url));  // use url for comparison
       playedSongs.add(randomSong.url);  // add url to the set
   
@@ -104,21 +112,28 @@ function Game() {
         game: randomSong.game
       });
   
-      // reset hasGuessed for all members at the start of each round
-      const membersRef = ref(db, `/lobbies/${lobbyId}/members`);
-      const membersSnapshot = await get(membersRef);
-      const membersData = membersSnapshot.val() || {};
-      
-      for (const userId in membersData) {
-        await set(ref(db, `/lobbies/${lobbyId}/members/${userId}`), { ...membersData[userId], hasGuessed: false });
-      }
-  
       rounds++;
     };
 
     playRound();
-    gameIntervalRef.current = setInterval(playRound, (guessTime + 3) * 1000);
+    console.log("Starting game with ", numSongs, " songs and ", guessTime, " seconds guess time.");
+
+    gameIntervalRef.current = setInterval(async () => {
+
+      if (rounds >= numSongs || playedSongs.size >= songs.length) {
+        clearInterval(gameIntervalRef.current);
+        console.log("Game end condition met, stopping game.");
+        const gameStartedRef = ref(db, `/lobbies/${lobbyId}/gameStarted`); // Reference to the 'gameStarted' field in Firebase
+        await set(gameStartedRef, false); // Set the 'gameStarted' field to false
+        setIsGameEnded(true);
+      } else {
+        console.log("Game continues to next round.");
+        playRound();
+      }
+    }, (guessTime + 3) * 1000);
+    
   };
+  
   
 
   const submitGuess = async () => {
@@ -150,25 +165,32 @@ function Game() {
     <div>
       <h1>Guess the Song!</h1>
       <div>Time left: {timeLeft}</div>
-      <input type="text" value={guess} onChange={handleGuessChange} />
-      {
-        filteredGameNames.length > 0 &&
-        <ul>
-          {filteredGameNames.map((gameName, index) => (
-            <li key={index} onClick={() => setGuess(gameName)}>{gameName}</li>
-          ))}
-        </ul>
-      }
-      <button onClick={submitGuess}>Submit Guess</button>
-      <div>Current Song: {currentSongName}</div>
-      <audio ref={audioRef} controls src={currentSongUrl} autoPlay></audio>
-      <button onClick={() => navigate(`/lobby/${lobbyId}`)}>Back to Lobby</button>
-      <div>
-        <h2>Members:</h2>
-        {members.map(member => (
-          <div key={member.name}>{member.name}: {member.points || 0} points</div>
+      <input type="text" value={guess} onChange={handleGuessChange} list="gameNames" />
+      <datalist id="gameNames">
+        {filteredGameNames.map((gameName, i) => (
+          <option key={i} value={gameName} />
         ))}
-      </div>
+      </datalist>
+      <button onClick={submitGuess}>Submit Guess</button>
+      <h1>Song: {currentSongName}</h1>
+      <audio controls ref={audioRef} src={currentSongUrl} autoPlay loop />
+      <h1>Scoreboard</h1>
+      <table>
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Score</th>
+          </tr>
+        </thead>
+        <tbody>
+          {members.sort((a, b) => b.points - a.points).map((member, i) => (
+            <tr key={i}>
+              <td>{member.name}</td>
+              <td>{member.points}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }
