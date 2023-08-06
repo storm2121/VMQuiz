@@ -19,34 +19,6 @@ function Game() {
   const countdownIntervalRef = useRef();
 
   useEffect(() => {
-    const initializeMembers = async () => {
-      const membersRef = ref(db, `/lobbies/${lobbyId}/members`);
-      const membersSnapshot = await get(membersRef);
-      const membersData = membersSnapshot.val() || {};
-      
-      for (const userId in membersData) {
-        if (!membersData[userId].points) {
-          await set(ref(db, `/lobbies/${lobbyId}/members/${userId}`), { points: 0 });
-        }
-      }
-      
-      setMembers(Object.entries(membersData).map(([userId]) => ({
-        name: userId,
-        points: membersData[userId].points || 0,
-      })));
-    };
-
-    initializeMembers();
-
-    const membersRef = ref(db, `/lobbies/${lobbyId}/members`);
-    onValue(membersRef, (snapshot) => {
-      const membersData = snapshot.val() || {};
-      setMembers(Object.entries(membersData).map(([userId, userData]) => ({
-        name: userId,
-        points: userData.points || 0,
-      })));
-    });
-
     const lobbySettingsRef = ref(db, `/lobbies/${lobbyId}/settings`);
     onValue(lobbySettingsRef, async (snapshot) => {
       const settings = snapshot.val();
@@ -56,14 +28,23 @@ function Game() {
       }
     });
 
+    const membersRef = ref(db, `/lobbies/${lobbyId}/members`);
+    onValue(membersRef, (snapshot) => {
+      const membersData = snapshot.val() || {};
+      console.log("Members data from Firebase:", membersData);
+      setMembers(Object.entries(membersData).map(([userId, userData]) => ({
+        name: userId, // assuming userId is the username; adjust as needed
+        points: userData.points || 0,
+      })));
+    });
+    
+
     return () => {
       off(membersRef);
       clearInterval(gameIntervalRef.current);
       clearInterval(countdownIntervalRef.current);
     };
   }, [lobbyId, navigate]);
-
-  // ... Rest of the code ...
 
   const fetchSongs = async (songGenre) => {
     const songsRef = collection(firestore, '/songs');
@@ -128,8 +109,7 @@ function Game() {
         const userId = email.split('@')[0];
         const memberRef = ref(db, `/lobbies/${lobbyId}/members/${userId}`);
         const memberSnapshot = await get(memberRef);
-        const memberData = memberSnapshot.val() || { points: 0 };
-        const memberPoints = memberData.points + 1;
+        const memberPoints = (memberSnapshot.val()?.points || 0) + 1;
         await set(memberRef, { points: memberPoints });
       }
   
@@ -138,6 +118,7 @@ function Game() {
       console.error("Error submitting guess:", error);
     }
   };
+  
 
   useEffect(() => {
     if (currentSongUrl) {
