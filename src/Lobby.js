@@ -9,7 +9,6 @@ function Lobby() {
     const { lobbyId } = useParams();
     const navigate = useNavigate();
     const [settings, setSettings] = useState(null);
-    const [lobbyActive, setLobbyActive] = useState(true);
 
     useEffect(() => {
         if (!auth.currentUser) {
@@ -65,67 +64,41 @@ function Lobby() {
 
         const username = auth.currentUser ? auth.currentUser.email.split('@')[0] : '';
         const addMember = async () => {
-            if (lobbyActive) {
-                const lobbyRef = ref(db, `/lobbies/${lobbyId}/members`);
-                const membersSnapshot = await get(lobbyRef);
-                const members = membersSnapshot.val();
-                const username = auth.currentUser ? auth.currentUser.email.split('@')[0] : '';
-                if (members && Object.keys(members).includes(username)) {
-                    return;
-                }
-                const userRef = ref(db, `/lobbies/${lobbyId}/members/${username}`);
-                set(userRef, { points: 0 }); // Initialize member with points property
+            const lobbyRef = ref(db, `/lobbies/${lobbyId}/members`);
+            const membersSnapshot = await get(lobbyRef);
+            const members = membersSnapshot.val();
+            const username = auth.currentUser ? auth.currentUser.email.split('@')[0] : '';
+            if (members && Object.keys(members).includes(username)) {
+                return;
             }
+            const userRef = ref(db, `/lobbies/${lobbyId}/members/${username}`);
+            set(userRef, true);
         };
-        
         addMember();
 
         const cleanup = async () => {
             if (auth.currentUser) {
-              const currentUserEmail = auth.currentUser.email;
-              const currentUsername = currentUserEmail.split('@')[0];
-              const lobbyRef = ref(db, `/lobbies/${lobbyId}`);
-              const membersRef = ref(db, `/lobbies/${lobbyId}/members`);
-              const userRef = ref(membersRef, currentUsername);
-              await remove(userRef);
-          
-              // Get members after removal
-              const membersSnapshot = await get(membersRef);
-              const members = membersSnapshot.val();
-          
-              // If no members left, remove the lobby
-              if (!members || Object.keys(members).length === 0) {
-                await remove(lobbyRef);
-              }
+                const currentUserEmail = auth.currentUser.email;
+                const currentUsername = currentUserEmail.split('@')[0];
+                const userRef = ref(db, `/lobbies/${lobbyId}/members/${currentUsername}`);
+                await remove(userRef);
             }
-          };
+        };
 
         window.addEventListener('beforeunload', cleanup);
         return () => {
             window.removeEventListener('beforeunload', cleanup);
+            cleanup();
         };
     }, [lobbyId, navigate, userLoaded]);
 
     const closeLobby = async () => {
-
-        setLobbyActive(false);
-
-        off(ref(db, `/lobbies/${lobbyId}/settings`));
-        off(ref(db, `/lobbies/${lobbyId}/gameStarted`));
-        off(ref(db, `/lobbies/${lobbyId}/members`));
-
         const lobbyRef = ref(db, `/lobbies/${lobbyId}`);
         await remove(lobbyRef);
         navigate('/lobby');
     };
 
     const startGame = async () => {
-
-        if (lobbyActive) {
-            const lobbyRef = ref(db, `/lobbies/${lobbyId}`);
-            await update(lobbyRef, { gameStarted: true });
-            navigate(`/game/${lobbyId}`);
-        }
         const lobbyRef = ref(db, `/lobbies/${lobbyId}`);
         await update(lobbyRef, { gameStarted: true });
         navigate(`/game/${lobbyId}`);
