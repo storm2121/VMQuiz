@@ -6,7 +6,7 @@ function CreateLobbyWithSettingsModal({ isOpen, onCreate }) {
     const [numSongs, setNumSongs] = useState(10); 
     const [guessTime, setGuessTime] = useState(30);
     const [songType, setSongType] = useState('opening');
-    const [songGenre, setSongGenre] = useState('non-eroge');
+    const [songGenre, setSongGenre] = useState('eroge');
 
     const handleSubmit = (e) => {
         e.preventDefault();

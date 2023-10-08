@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { ref, onValue, off, set, get } from "firebase/database";
 import { collection, query, getDocs, where } from "firebase/firestore";
 import { db, firestore, auth } from './firebase.js';
@@ -15,11 +15,17 @@ function Game() {
   const [guessTime, setGuessTime] = useState(0);
   const [gameNames, setGameNames] = useState([]);
   const [filteredGameNames, setFilteredGameNames] = useState([]);
+  const [isGameEnded, setIsGameEnded] = useState(false); // Add this line
+  const [isGameActive, setIsGameActive] = useState(true); // New line
+
   const { lobbyId } = useParams();
   const navigate = useNavigate();
   const audioRef = useRef();
   const gameIntervalRef = useRef();
   const countdownIntervalRef = useRef();
+  const isMountedRef = useRef(true); // Add this line
+
+  const navigateToLobby = useCallback(() => navigate(`/lobby/${lobbyId}`), [navigate, lobbyId]); // Add this line
 
   useEffect(() => {
     const fetchGameNames = async () => {
@@ -38,6 +44,8 @@ function Game() {
   }, []);
 
   useEffect(() => {
+    console.log("Members or lobby settings have changed. Starting initialization process.");
+
     const initializeMembers = async () => {
       const membersRef = ref(db, `/lobbies/${lobbyId}/members`);
       const membersSnapshot = await get(membersRef);
@@ -55,6 +63,8 @@ function Game() {
         hasGuessed: membersData[userId].hasGuessed || false,
       })));
     };
+
+   
 
     initializeMembers();
 
@@ -74,7 +84,13 @@ function Game() {
       setGuessTime(settings.guessTime);
       const fetchedSongs = await fetchSongs(settings.songGenre);
       if (fetchedSongs.length > 0) {
-        startGame(fetchedSongs, settings.guessTime, settings.numSongs);
+        // Make sure to only start the game if it's not already active
+        if (!isGameActive) {
+          console.log("Game is not active, starting game.");
+          startGame(fetchedSongs, settings.guessTime, settings.numSongs);
+        } else {
+          console.log("Game is already active, not starting a new game.");
+        }
       }
     });
 
@@ -102,12 +118,30 @@ function Game() {
     });
 
     return () => {
+      isMountedRef.current = false; // Add this line
+      console.log("Component unmounted. isMountedRef:", isMountedRef.current);
+
       off(membersRef);
       off(lobbySongsRef);
       clearInterval(gameIntervalRef.current);
       clearInterval(countdownIntervalRef.current);
+      setIsGameActive(false); // New line
+      console.log("Cleanup done. isGameActive:", isGameActive);
+
+
     };
-  }, [lobbyId, navigate, guessTime]);
+  }, [lobbyId, navigateToLobby, guessTime, isGameActive]);
+
+  useEffect(() => {
+    console.log("Game ended state detected, navigating to lobby.");
+
+    if (isGameEnded) {
+      console.log("Game ended state detected, navigating to lobby.");
+
+      navigate(`/lobby/${lobbyId}`);
+    }
+  }, [isGameEnded, lobbyId, navigate]);
+
 
   const fetchSongs = async (songGenre) => {
     const songsRef = collection(firestore, '/songs');
@@ -124,20 +158,21 @@ function Game() {
   };
 
   const startGame = (songs, guessTime, numSongs) => {
+    if (isMountedRef.current) {
+      setIsGameActive(true);
+    }    console.log("StartGame function initiated. isGameActive:", isGameActive);
+
     const lobbySongsRef = ref(db, `/lobbies/${lobbyId}/currentSong`);
   
     let rounds = 0;
     const playedSongs = new Set();
     const playRound = async () => {
-      if (rounds >= numSongs || playedSongs.size >= songs.length) {
-        clearInterval(gameIntervalRef.current);
-        navigate(`/lobby/${lobbyId}`);
-        return;
-      }
-  
       let randomSong;
       do {
+        
         randomSong = songs[Math.floor(Math.random() * songs.length)];
+        console.log("Chose new song: ", randomSong.game);
+
       } while (playedSongs.has(randomSong.url));  // use url for comparison
       playedSongs.add(randomSong.url);  // add url to the set
   
@@ -146,22 +181,37 @@ function Game() {
         game: randomSong.game
       });
   
-      // reset hasGuessed for all members at the start of each round
-      const membersRef = ref(db, `/lobbies/${lobbyId}/members`);
-      const membersSnapshot = await get(membersRef);
-      const membersData = membersSnapshot.val() || {};
-      
-      for (const userId in membersData) {
-        await set(ref(db, `/lobbies/${lobbyId}/members/${userId}`), { ...membersData[userId], hasGuessed: false });
-      }
-  
       rounds++;
     };
   
     playRound();
-    gameIntervalRef.current = setInterval(playRound, (guessTime + 3) * 1000);
+    console.log("Starting game with ", numSongs, " songs and ", guessTime, " seconds guess time.");
+
+    gameIntervalRef.current = setInterval(async () => {
+      console.log("Interval function started. Rounds:", rounds, "Played songs:", playedSongs.size, "isGameActive:", isGameActive);
+
+      if (!isGameActive || rounds >= numSongs || playedSongs.size >= songs.length) {  
+        console.log("Game is ending due to one of the conditions met.");
+
+        endGame();
+      } else {
+        console.log("Game continues to next round.");
+        playRound();
+      }
+    }, (guessTime + 3) * 1000);
+    
   };
   
+  const endGame = async () => {
+    clearInterval(gameIntervalRef.current);
+    console.log("EndGame function initiated. Stopping game.");
+    const gameStartedRef = ref(db, `/lobbies/${lobbyId}/gameStarted`);
+    await set(gameStartedRef, false);
+    setIsGameEnded(true);
+    setIsGameActive(false);  
+    console.log("Game ended. isGameEnded:", isGameEnded, "isGameActive:", isGameActive);
+
+  };
 
   const submitGuess = async () => {
     if (guess.toLowerCase() === currentSongGame.toLowerCase()) {
@@ -190,30 +240,49 @@ function Game() {
   };
 
   return (
-<div>
-      <h1>Guess the Song!</h1>
-      <div>Time left: {timeLeft}</div>
-      <input type="text" value={guess} onChange={handleGuessChange} />
-      {
-        filteredGameNames.length > 0 &&
-        <ul>
-          {filteredGameNames.map((gameName, index) => (
-            <li key={index} onClick={() => setGuess(gameName)}>{gameName}</li>
-          ))}
-        </ul>
-      }
-      <button onClick={submitGuess}>Submit Guess</button>
-      <div>Current Song: {currentSongName}</div>
-      <audio ref={audioRef} controls src={currentSongUrl} autoPlay></audio>
-      <button onClick={() => navigate(`/lobby/${lobbyId}`)}>Back to Lobby</button>
-      <div>
-        <h2>Members:</h2>
-        {members.map(member => (
-          <div key={member.name}>{member.name}: {member.points || 0} points</div>
-        ))}
-      </div>
-    </div>
-      );
+<div className="game-container">
+
+<div className="scoreboard">
+  <h1>Scoreboard</h1>
+  <table>
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Score</th>
+      </tr>
+    </thead>
+    <tbody>
+      {members.sort((a, b) => b.points - a.points).map((member, i) => (
+        <tr key={i}>
+          <td>{member.name}</td>
+          <td>{member.points}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+</div>
+
+<div className="game-actions">
+  <h1>Guess the Song!</h1>
+  <div>Time left: {timeLeft}</div>
+  <input type="text" value={guess} onChange={handleGuessChange} list="gameNames" />
+  <datalist id="gameNames">
+    {filteredGameNames.map((gameName, i) => (
+      <option key={i} value={gameName} />
+    ))}
+  </datalist>
+  <button onClick={submitGuess}>Submit Guess</button>
+  <button onClick={endGame}>Leave Game</button>
+</div>
+
+<div className="audio-container">
+  <h2>Now Playing: {currentSongName}</h2>
+  <audio controls ref={audioRef} src={currentSongUrl} autoPlay loop />
+</div>
+
+</div>
+
+  );
 }
 
 export default Game;

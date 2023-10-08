@@ -1,0 +1,203 @@
+/* Global Styles */
+body {
+    font-family: 'Arial', sans-serif;
+    background-image: url('/src/assets/images/IMG_0021.jpg');
+    color: #fff;
+    height: 100vh;
+    margin: 0;
+    font-weight: 300;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+  }
+  
+  button {
+    background-color: #ff4b2b;
+    border: none;
+    border-radius: 50px;
+    color: #ffffff;
+    font-weight: 700;
+    padding: 15px 30px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    transition: transform 80ms ease-in, background-color 0.3s ease;
+    margin-top: 10px;
+    cursor: pointer;
+
+  }
+  
+  button:hover {
+    transform: scale(1.05);
+    background-color: #ff6e40;
+  }
+  
+  h1, h2 {
+    font-weight: 700;
+  }
+  
+  ul {
+    list-style-type: none;
+    padding-left: 0;
+  }
+  
+  /* Login Page */
+  form {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    background-color: rgba(0, 0, 0, 0.5);
+    padding: 25px;
+    border-radius: 15px;
+  }
+  
+  label {
+    display: flex;
+    flex-direction: column;
+    font-size: 1rem;
+  }
+  
+  input {
+    padding: 10px;
+    border-radius: 10px;
+    border: 2px solid #eee;
+    font-size: 1rem;
+    outline: none;
+  }
+  
+  input:focus {
+    border-color: #ff6e40;
+  }
+  
+  /* Lobby Page */
+  h1 {
+    text-align: center;
+    margin-bottom: 20px;
+  }
+  
+  div[key] {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background-color: rgba(0, 0, 0, 0.5);
+    padding: 10px;
+    border-radius: 10px;
+    margin-bottom: 10px;
+  }
+  
+  /* Lobby */
+  h1 {
+    text-align: center;
+    color: #ffffff;
+    text-shadow: 1px 1px 1px #999;
+  }
+  
+  div > p {
+    margin: 5px 0;
+  }
+  
+  h2 {
+    border-bottom: 2px solid #ff4b2b;
+    padding-bottom: 10px;
+    margin-bottom: 20px;
+    color: #ffffff;
+    text-shadow: 1px 1px 1px #999;
+  }
+
+
+  /* Styling for the audio player */
+audio {
+    width: 300px;
+    outline: none;
+    margin: 20px;
+    border-radius: 10px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+  }
+  
+  .audio-container {
+    position: fixed;
+    bottom: 0;
+    right: 0;
+    background-color: rgba(0, 0, 0, 0.7);
+    border-radius: 15px 0 0 0;
+    padding: 10px;
+  }
+  
+  /* Styling for the main game container */
+.game-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100vh;
+    gap: 20px;
+    padding: 20px;
+  }
+  
+  /* Styling for the scoreboard */
+  .scoreboard {
+    flex: 1;
+    max-width: 250px;
+    background-color: rgba(0, 0, 0, 0.7);
+    border-radius: 15px;
+    padding: 20px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    position: fixed;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
+  }
+  
+  .scoreboard table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  
+  .scoreboard th, .scoreboard td {
+    padding: 10px;
+    border-bottom: 1px solid #eee;
+  }
+  
+  /* Styling for the main game actions */
+  .game-actions {
+    flex: 2;
+    text-align: center;
+  }
+  
+  .lobby-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    font-family: 'Arial', sans-serif;
+    min-height: 100vh;
+    padding: 20px;
+}
+
+
+button:hover {
+    background-color: #45a049;
+}
+.settings {
+    background: linear-gradient(to bottom, #002f4b, #4a789e);
+    border-radius: 5px;
+    box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.2);
+    padding: 20px;
+    margin-top: 20px;
+}
+
+.members-list {
+    list-style-type: none;
+    padding: 0;
+    margin-top: 10px;
+}
+
+.members-list li {
+    padding: 8px 0;
+    border-bottom: 1px solid #ddd;
+}
+
+.members-list li:last-child {
+    border-bottom: none;
+}
