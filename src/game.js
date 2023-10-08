@@ -240,38 +240,48 @@ function Game() {
   };
 
   return (
-<div>
-      <h1>Guess the Song!</h1>
-      <div>Time left: {timeLeft}</div>
-      <input type="text" value={guess} onChange={handleGuessChange} list="gameNames" />
-      <datalist id="gameNames">
-        {filteredGameNames.map((gameName, i) => (
-          <option key={i} value={gameName} />
-        ))}
-      </datalist>
-      <button onClick={submitGuess}>Submit Guess</button>
-      <button onClick={endGame}>Leave Game</button>
+<div className="game-container">
 
-      <h1>Song: {currentSongName}</h1>
-      <audio controls ref={audioRef} src={currentSongUrl} autoPlay loop />
-      <h1>Scoreboard</h1>
-      <table>
-        <thead>
-          <tr>
-            <th>Name</th>
-            <th>Score</th>
-          </tr>
-        </thead>
-        <tbody>
-          {members.sort((a, b) => b.points - a.points).map((member, i) => (
-            <tr key={i}>
-              <td>{member.name}</td>
-              <td>{member.points}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+<div className="scoreboard">
+  <h1>Scoreboard</h1>
+  <table>
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Score</th>
+      </tr>
+    </thead>
+    <tbody>
+      {members.sort((a, b) => b.points - a.points).map((member, i) => (
+        <tr key={i}>
+          <td>{member.name}</td>
+          <td>{member.points}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+</div>
+
+<div className="game-actions">
+  <h1>Guess the Song!</h1>
+  <div>Time left: {timeLeft}</div>
+  <input type="text" value={guess} onChange={handleGuessChange} list="gameNames" />
+  <datalist id="gameNames">
+    {filteredGameNames.map((gameName, i) => (
+      <option key={i} value={gameName} />
+    ))}
+  </datalist>
+  <button onClick={submitGuess}>Submit Guess</button>
+  <button onClick={endGame}>Leave Game</button>
+</div>
+
+<div className="audio-container">
+  <h2>Now Playing: {currentSongName}</h2>
+  <audio controls ref={audioRef} src={currentSongUrl} autoPlay loop />
+</div>
+
+</div>
+
   );
 }
 

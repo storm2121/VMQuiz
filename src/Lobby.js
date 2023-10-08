@@ -136,31 +136,34 @@ function Lobby() {
     const hasMembers = lobbyData.members && Object.keys(lobbyData.members).length > 0;
 
     return (
-        <div>
-            <h1>{lobbyData.name}</h1>
-            {settings && (
-                <div>
-                    <p>Number of songs: {settings.numSongs}</p>
-                    <p>Time to guess a song: {settings.guessTime}</p>
-                    <p>Song type: {settings.songType}</p>
-                    <p>Song genre: {settings.songGenre}</p>
-                </div>
-            )}
-            {hasMembers ? (
-                <>
-                    <h2>Members:</h2>
-                    <ul>
-                        {Object.keys(lobbyData.members).map(username => (
-                            <li key={username}>{username}</li>
-                        ))}
-                    </ul>
-                    <button onClick={startGame}>Start Game</button> {/* Add this line */}
-                </>
-            ) : (
-                <p>No members in this lobby yet.</p>
-            )}
-            <button onClick={closeLobby}>Close Lobby</button>
-        </div>
+        <div className="lobby-container">
+        <h1>{lobbyData.name}</h1>
+        
+        {settings && (
+            <div className="settings">
+                <p>Number of songs: {settings.numSongs}</p>
+                <p>Time to guess a song: {settings.guessTime}</p>
+                <p>Song type: {settings.songType}</p>
+                <p>Song genre: {settings.songGenre}</p>
+            </div>
+        )}
+        
+        <h2>Members:</h2>
+        {hasMembers ? (
+            <>
+                <ul className="members-list">
+                    {Object.keys(lobbyData.members).map(username => (
+                        <li key={username}>{username}</li>
+                    ))}
+                </ul>
+                <button onClick={startGame}>Start Game</button>
+            </>
+        ) : (
+            <p>No members in this lobby yet.</p>
+        )}
+
+        <button onClick={closeLobby}>Close Lobby</button>
+    </div>
     );
 }
 

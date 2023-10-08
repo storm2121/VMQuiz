@@ -7,6 +7,7 @@ import Lobby from "./Lobby";
 import AuthWrapper from "./AuthWrapper";
 import Game from "./game"; // Import the Game component
 import RootPage from "./RootPage";
+import './styles.css';
 
 function App() {
   return (
