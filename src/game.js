@@ -120,6 +120,7 @@ function Game() {
     return () => {
       isMountedRef.current = false; // Add this line
       console.log("Component unmounted. isMountedRef:", isMountedRef.current);
+      setIsGameActive(false); // New line
 
       off(membersRef);
       off(lobbySongsRef);

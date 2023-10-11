@@ -3,6 +3,17 @@ import { useNavigate } from "react-router-dom";
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { auth } from "./firebase.js";
 
+
+function Header() {
+  return (
+    <div className="header">
+      <a href="/rules" className="header-link">Rules</a>
+      <a href="/settings" className="header-link">Settings</a>
+      <a href="/vnlist" className="header-link">Vnlist</a>
+    </div>
+  );
+}
+
 function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -35,6 +46,8 @@ function LoginPage() {
 
   return (
     <div>
+            <Header />
+
       <form onSubmit={handleSubmit}>
         <label>
           Email:
