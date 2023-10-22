@@ -16,7 +16,7 @@ function Game() {
   const [gameNames, setGameNames] = useState([]);
   const [filteredGameNames, setFilteredGameNames] = useState([]);
   const [isGameEnded, setIsGameEnded] = useState(false); // Add this line
-  const [isGameActive, setIsGameActive] = useState(true); // New line
+  const [isGameActive, setIsGameActive] = useState(false); // New line
 
   const { lobbyId } = useParams();
   const navigate = useNavigate();
@@ -29,119 +29,120 @@ function Game() {
 
   useEffect(() => {
     const fetchGameNames = async () => {
-      const gameNamesRef = collection(firestore, '/songs');
-      const gameNamesQuerySnapshot = await getDocs(gameNamesRef);
-      const gameNames = [];
-
-      gameNamesQuerySnapshot.forEach((doc) => {
-        gameNames.push(doc.data().game);
-      });
-
-      setGameNames([...new Set(gameNames)]);
+        const gameNamesRef = collection(firestore, '/songs');
+        const gameNamesQuerySnapshot = await getDocs(gameNamesRef);
+        const gameNames = [];
+        gameNamesQuerySnapshot.forEach((doc) => {
+            gameNames.push(doc.data().game);
+        });
+        setGameNames([...new Set(gameNames)]);
     };
-
     fetchGameNames();
-  }, []);
+}, []);
 
-  useEffect(() => {
-    console.log("Members or lobby settings have changed. Starting initialization process.");
-
-    const initializeMembers = async () => {
+useEffect(() => {
+  const initializeMembers = async () => {
       const membersRef = ref(db, `/lobbies/${lobbyId}/members`);
       const membersSnapshot = await get(membersRef);
       const membersData = membersSnapshot.val() || {};
       
       for (const userId in membersData) {
-        if (!membersData[userId].points || !membersData[userId].hasGuessed) {
-          await set(ref(db, `/lobbies/${lobbyId}/members/${userId}`), { points: 0, hasGuessed: false });
-        }
+          if (!membersData[userId].points || !membersData[userId].hasGuessed) {
+              await set(ref(db, `/lobbies/${lobbyId}/members/${userId}`), { points: 0, hasGuessed: false });
+          }
       }
       
       setMembers(Object.entries(membersData).map(([userId]) => ({
-        name: userId,
-        points: membersData[userId].points || 0,
-        hasGuessed: membersData[userId].hasGuessed || false,
+          name: userId,
+          points: membersData[userId].points || 0,
+          hasGuessed: membersData[userId].hasGuessed || false,
       })));
-    };
+  };
 
-   
+  initializeMembers();
 
-    initializeMembers();
-
-    const membersRef = ref(db, `/lobbies/${lobbyId}/members`);
-    onValue(membersRef, (snapshot) => {
+  const membersRef = ref(db, `/lobbies/${lobbyId}/members`);
+  const memSubscription = onValue(membersRef, (snapshot) => {
       const membersData = snapshot.val() || {};
       setMembers(Object.entries(membersData).map(([userId, userData]) => ({
-        name: userId,
-        points: userData.points || 0,
-        hasGuessed: userData.hasGuessed || false,
+          name: userId,
+          points: userData.points || 0,
+          hasGuessed: userData.hasGuessed || false,
       })));
-    });
+  });
 
-    const lobbySettingsRef = ref(db, `/lobbies/${lobbyId}/settings`);
-    onValue(lobbySettingsRef, async (snapshot) => {
+  return () => {
+      off(membersRef, memSubscription);
+  };
+}, [lobbyId]);
+useEffect(() => {
+  // Lobby Settings
+  const lobbySettingsRef = ref(db, `/lobbies/${lobbyId}/settings`);
+  const settingSubscription = onValue(lobbySettingsRef, async (snapshot) => {
       const settings = snapshot.val();
-      setGuessTime(settings.guessTime);
-      const fetchedSongs = await fetchSongs(settings.songGenre);
-      if (fetchedSongs.length > 0) {
-        // Make sure to only start the game if it's not already active
-        if (!isGameActive) {
-          console.log("Game is not active, starting game.");
-          startGame(fetchedSongs, settings.guessTime, settings.numSongs);
-        } else {
-          console.log("Game is already active, not starting a new game.");
+      if (settings){
+        setGuessTime(settings.guessTime);
+        const fetchedSongs = await fetchSongs(settings.songGenre);
+        if (fetchedSongs.length > 0 && !isGameActive) {
+            console.log("Game is not active, starting game.");
+            executeGameLogic(fetchedSongs, settings.guessTime, settings.numSongs);
         }
       }
-    });
+      
+  });
 
-    const lobbySongsRef = ref(db, `/lobbies/${lobbyId}/currentSong`);
-    onValue(lobbySongsRef, (snapshot) => {
+  return () => {
+      off(lobbySettingsRef, settingSubscription);
+  };
+}, [lobbyId, isGameActive]);
+useEffect(() => {
+  const lobbySongsRef = ref(db, `/lobbies/${lobbyId}/currentSong`);
+  const songSubscription = onValue(lobbySongsRef, (snapshot) => {
       const currentSongData = snapshot.val();
 
       if (currentSongData) {
-        setTimeLeft(guessTime);
-        setCurrentSongUrl(currentSongData.url);
-        setCurrentSongGame(currentSongData.game);
-        setCurrentSongName("???");
+          setTimeLeft(guessTime);
+          setCurrentSongUrl(currentSongData.url);
+          setCurrentSongGame(currentSongData.game);
+          setCurrentSongName("???");
 
-        clearInterval(countdownIntervalRef.current);
-        countdownIntervalRef.current = setInterval(() => {
-          setTimeLeft(prevTimeLeft => {
-            if (prevTimeLeft <= 1) {
-              clearInterval(countdownIntervalRef.current);
-              setCurrentSongName(currentSongData.game);
-            }
-            return prevTimeLeft - 1;
-          });
-        }, 1000);
+          clearInterval(countdownIntervalRef.current);
+          countdownIntervalRef.current = setInterval(() => {
+              setTimeLeft(prevTimeLeft => {
+                  if (prevTimeLeft <= 1) {
+                      clearInterval(countdownIntervalRef.current);
+                      setCurrentSongName(currentSongData.game);
+                  }
+                  return prevTimeLeft - 1;
+              });
+          }, 1000);
       }
-    });
+  });
 
-    return () => {
-      isMountedRef.current = false; // Add this line
-      console.log("Component unmounted. isMountedRef:", isMountedRef.current);
-      setIsGameActive(false); // New line
-
-      off(membersRef);
-      off(lobbySongsRef);
-      clearInterval(gameIntervalRef.current);
+  return () => {
       clearInterval(countdownIntervalRef.current);
-      setIsGameActive(false); // New line
-      console.log("Cleanup done. isGameActive:", isGameActive);
+      off(lobbySongsRef, songSubscription);
+  };
+}, [lobbyId, guessTime]);
 
 
-    };
-  }, [lobbyId, navigateToLobby, guessTime, isGameActive]);
+useEffect(() => {
+  return () => {
+      clearInterval(gameIntervalRef.current);
+      console.log("this is the clearinterval function")
+      setIsGameActive(false);
+  };
+}, []);
+
 
   useEffect(() => {
-    console.log("Game ended state detected, navigating to lobby.");
 
     if (isGameEnded) {
       console.log("Game ended state detected, navigating to lobby.");
 
       navigate(`/lobby/${lobbyId}`);
     }
-  }, [isGameEnded, lobbyId, navigate]);
+  },  [isGameEnded]);
 
 
   const fetchSongs = async (songGenre) => {
@@ -158,13 +159,16 @@ function Game() {
     return filteredSongs;
   };
 
-  const startGame = (songs, guessTime, numSongs) => {
-    if (isMountedRef.current) {
+  const executeGameLogic = (songs, guessTime, numSongs) => {
+    if (!isGameActive) {
+      console.log("Setting game to active.");
       setIsGameActive(true);
-    }    console.log("StartGame function initiated. isGameActive:", isGameActive);
+      return; // Early return. The next cycle should continue the game logic.
+  }
+
+    console.log("Executing game logic. isGameActive:", isGameActive);
 
     const lobbySongsRef = ref(db, `/lobbies/${lobbyId}/currentSong`);
-  
     let rounds = 0;
     const playedSongs = new Set();
     const playRound = async () => {
@@ -192,6 +196,7 @@ function Game() {
       console.log("Interval function started. Rounds:", rounds, "Played songs:", playedSongs.size, "isGameActive:", isGameActive);
 
       if (!isGameActive || rounds >= numSongs || playedSongs.size >= songs.length) {  
+        console.log(isGameActive,rounds,numSongs,playedSongs.size,songs.length);
         console.log("Game is ending due to one of the conditions met.");
 
         endGame();
@@ -201,18 +206,40 @@ function Game() {
       }
     }, (guessTime + 3) * 1000);
     
+};
+
+
+
+useEffect(() => {
+  const runAsync = async () => {
+      const lobbySettingsRef = ref(db, `/lobbies/${lobbyId}/settings`);
+      const settingsSnapshot = await get(lobbySettingsRef);
+      const settings = settingsSnapshot.val();
+
+      if (isGameActive && settings) {
+          const fetchedSongs = await fetchSongs(settings.songGenre);
+          executeGameLogic(fetchedSongs, settings.guessTime, settings.numSongs);
+      }
   };
+  runAsync();
+}, [isGameActive, lobbyId]);
+
+
+
   
   const endGame = async () => {
     clearInterval(gameIntervalRef.current);
     console.log("EndGame function initiated. Stopping game.");
     const gameStartedRef = ref(db, `/lobbies/${lobbyId}/gameStarted`);
     await set(gameStartedRef, false);
-    setIsGameEnded(true);
-    setIsGameActive(false);  
-    console.log("Game ended. isGameEnded:", isGameEnded, "isGameActive:", isGameActive);
+    
+    setIsGameEnded(prevState => true);  // Use prevState for clarity
+    console.log("This is the endgame function")
+    setIsGameActive(prevState => false);  // Use prevState for clarity
 
-  };
+    console.log("Game ended. isGameEnded:", isGameEnded, "isGameActive:", isGameActive);
+};
+
 
   const submitGuess = async () => {
     if (guess.toLowerCase() === currentSongGame.toLowerCase()) {

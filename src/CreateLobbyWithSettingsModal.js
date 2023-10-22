@@ -13,7 +13,7 @@ function CreateLobbyWithSettingsModal({ isOpen, onCreate }) {
 
         onCreate({
             lobbyName,
-            settings: { numSongs, guessTime, songType, songGenre }
+            settings: { numSongs, guessTime: parseInt(guessTime, 10), songType, songGenre }
         });
 
         setLobbyName('');
@@ -36,8 +36,7 @@ function CreateLobbyWithSettingsModal({ isOpen, onCreate }) {
                     </Form.Group>
                     <Form.Group>
                         <Form.Label>Time to Guess</Form.Label>
-                        <Form.Control type="number" value={guessTime} onChange={e => setGuessTime(e.target.value)} />
-                    </Form.Group>
+                        <Form.Control type="number" value={guessTime} onChange={e => setGuessTime(parseInt(e.target.value, 10))} />                    </Form.Group>
                     <Form.Group>
                         <Form.Label>Song Type</Form.Label>
                         <Form.Control as="select" value={songType} onChange={e => setSongType(e.target.value)}>
