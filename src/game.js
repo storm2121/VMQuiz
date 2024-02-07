@@ -42,16 +42,25 @@ function Game() {
 
 useEffect(() => {
   const initializeMembers = async () => {
+    console.log(`Initializing members for lobby: ${lobbyId}`);
+
       const membersRef = ref(db, `/lobbies/${lobbyId}/members`);
       const membersSnapshot = await get(membersRef);
       const membersData = membersSnapshot.val() || {};
-      
+      console.log(`[Game] Current members data before initialization:`, membersData);
+
       for (const userId in membersData) {
+        console.log(`[Game] Checking member: ${userId}`);
+
           if (!membersData[userId].points || !membersData[userId].hasGuessed) {
+            console.log(`[Game] Setting initial points and hasGuessed for member: ${userId}`);
+
               await set(ref(db, `/lobbies/${lobbyId}/members/${userId}`), { points: 0, hasGuessed: false });
           }
       }
       
+      console.log(`[Game] Members initialization completed for lobby: ${lobbyId}`);
+
       setMembers(Object.entries(membersData).map(([userId]) => ({
           name: userId,
           points: membersData[userId].points || 0,

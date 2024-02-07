@@ -99,8 +99,12 @@ function Lobby() {
     };
 
     const startGame = async () => {
+        console.log(`Starting game for lobby: ${lobbyId}`);
+
         const lobbyRef = ref(db, `/lobbies/${lobbyId}`);
         await update(lobbyRef, { gameStarted: true });
+        console.log(`Game started flag set to true for lobby: ${lobbyId}`);
+
         navigate(`/game/${lobbyId}`);
     };
 
