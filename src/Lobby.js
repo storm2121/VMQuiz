@@ -80,11 +80,27 @@ function Lobby() {
             const currentUserEmail = auth.currentUser.email;
             const currentUsername = currentUserEmail.split('@')[0];
             const userRef = ref(db, `/lobbies/${lobbyId}/members/${currentUsername}`);
+            
+            // Remove the current user from the lobby members
             await remove(userRef);
+    
+            // Fetch the updated state of the members
+            const lobbyRef = ref(db, `/lobbies/${lobbyId}/members`);
+            const snapshot = await get(lobbyRef);
+            const members = snapshot.val();
+    
+            // Check if the lobby is empty
+            if (!members || Object.keys(members).length === 0) {
+                // If the lobby is empty, remove the lobby
+                const lobbyToDeleteRef = ref(db, `/lobbies/${lobbyId}`);
+                await remove(lobbyToDeleteRef);
+                console.log("Lobby is empty and has been closed.");
+            }
+    
             navigate('/lobby');  
         }
-        
     };
+    
 
     const closeLobby = async () => {
         const lobbyRef = ref(db, `/lobbies/${lobbyId}`);
@@ -128,7 +144,7 @@ function Lobby() {
             ) : (
                 <p>No members in this lobby yet.</p>
             )}
-            <button onClick={leaveLobby}>Leave the Lobby</button>
+            <button onClick={leaveLobby}>Leave tee Lobby</button>
             <button onClick={closeLobby}>Close Lobby</button>
         </div>
     );
