@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ref, onValue, remove, off, push, set, get , update } from "firebase/database";
+import { ref, onValue, remove, off, set, get, update } from "firebase/database";
 import { db, auth } from './firebase.js';
 
 function Lobby() {
@@ -24,7 +24,7 @@ function Lobby() {
         const lobbyRef = ref(db, `/lobbies/${lobbyId}`);
         const unsubscribe = onValue(lobbyRef, (snapshot) => {
             const data = snapshot.val();
-            if (data) { // 
+            if (data) {
                 setLobbyData(data);
             }
         });
@@ -32,7 +32,6 @@ function Lobby() {
         return () => unsubscribe();
     }, [lobbyId, userLoaded]);
     
-
     useEffect(() => {
         const settingsRef = ref(db, `/lobbies/${lobbyId}/settings`);
         const listener = onValue(settingsRef, snapshot => {
@@ -62,7 +61,6 @@ function Lobby() {
     useEffect(() => {
         if (!userLoaded) return;
 
-        const username = auth.currentUser ? auth.currentUser.email.split('@')[0] : '';
         const addMember = async () => {
             const lobbyRef = ref(db, `/lobbies/${lobbyId}/members`);
             const membersSnapshot = await get(lobbyRef);
@@ -75,22 +73,18 @@ function Lobby() {
             set(userRef, true);
         };
         addMember();
+    }, [lobbyId, userLoaded]);
 
-        const cleanup = async () => {
-            if (auth.currentUser) {
-                const currentUserEmail = auth.currentUser.email;
-                const currentUsername = currentUserEmail.split('@')[0];
-                const userRef = ref(db, `/lobbies/${lobbyId}/members/${currentUsername}`);
-                await remove(userRef);
-            }
-        };
-
-        window.addEventListener('beforeunload', cleanup);
-        return () => {
-            window.removeEventListener('beforeunload', cleanup);
-            cleanup();
-        };
-    }, [lobbyId, navigate, userLoaded]);
+    const leaveLobby = async () => {
+        if (auth.currentUser) {
+            const currentUserEmail = auth.currentUser.email;
+            const currentUsername = currentUserEmail.split('@')[0];
+            const userRef = ref(db, `/lobbies/${lobbyId}/members/${currentUsername}`);
+            await remove(userRef);
+            navigate('/lobby');  
+        }
+        
+    };
 
     const closeLobby = async () => {
         const lobbyRef = ref(db, `/lobbies/${lobbyId}`);
@@ -99,12 +93,8 @@ function Lobby() {
     };
 
     const startGame = async () => {
-        console.log(`Starting game for lobby: ${lobbyId}`);
-
         const lobbyRef = ref(db, `/lobbies/${lobbyId}`);
         await update(lobbyRef, { gameStarted: true });
-        console.log(`Game started flag set to true for lobby: ${lobbyId}`);
-
         navigate(`/game/${lobbyId}`);
     };
 
@@ -114,33 +104,33 @@ function Lobby() {
 
     return (
         <div className="lobby-container">
-        <h1>{lobbyData.name}</h1>
-        
-        {settings && (
-            <div className="settings">
-                <p>Number of songs: {settings.numSongs}</p>
-                <p>Time to guess a song: {settings.guessTime}</p>
-                <p>Song type: {settings.songType}</p>
-                <p>Song genre: {settings.songGenre}</p>
-            </div>
-        )}
-        
-        <h2>Members:</h2>
-        {hasMembers ? (
-            <>
-                <ul className="members-list">
-                    {Object.keys(lobbyData.members).map(username => (
-                        <li key={username}>{username}</li>
-                    ))}
-                </ul>
-                <button onClick={startGame}>Start Game</button>
-            </>
-        ) : (
-            <p>No members in this lobby yet.</p>
-        )}
-
-        <button onClick={closeLobby}>Close Lobby</button>
-    </div>
+            <h1>{lobbyData.name}</h1>
+            
+            {settings && (
+                <div className="settings">
+                    <p>Number of songs: {settings.numSongs}</p>
+                    <p>Time to guess a song: {settings.guessTime}</p>
+                    <p>Song type: {settings.songType}</p>
+                    <p>Song genre: {settings.songGenre}</p>
+                </div>
+            )}
+            
+            <h2>Members:</h2>
+            {hasMembers ? (
+                <>
+                    <ul className="members-list">
+                        {Object.keys(lobbyData.members).map(username => (
+                            <li key={username}>{username}</li>
+                        ))}
+                    </ul>
+                    <button onClick={startGame}>Start Game</button>
+                </>
+            ) : (
+                <p>No members in this lobby yet.</p>
+            )}
+            <button onClick={leaveLobby}>Leave the Lobby</button>
+            <button onClick={closeLobby}>Close Lobby</button>
+        </div>
     );
 }
 
